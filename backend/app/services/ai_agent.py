@@ -60,6 +60,67 @@ class SearchRunbooksInput(BaseModel):
     n_results: int = Field(default=3, description="Number of results to return")
 
 
+class DeletePodInput(BaseModel):
+    """Input schema for delete_pod tool."""
+
+    pod_name: str = Field(description="Name of the pod to delete")
+    namespace: str = Field(default="default", description="The Kubernetes namespace")
+    grace_period_seconds: int | None = Field(
+        default=None, description="Grace period for pod termination in seconds"
+    )
+
+
+class DeleteDeploymentInput(BaseModel):
+    """Input schema for delete_deployment tool."""
+
+    deployment_name: str = Field(description="Name of the deployment to delete")
+    namespace: str = Field(default="default", description="The Kubernetes namespace")
+    grace_period_seconds: int | None = Field(
+        default=None, description="Grace period for resource termination in seconds"
+    )
+
+
+class DeleteServiceInput(BaseModel):
+    """Input schema for delete_service tool."""
+
+    service_name: str = Field(description="Name of the service to delete")
+    namespace: str = Field(default="default", description="The Kubernetes namespace")
+
+
+class DeleteStatefulSetInput(BaseModel):
+    """Input schema for delete_statefulset tool."""
+
+    statefulset_name: str = Field(description="Name of the statefulset to delete")
+    namespace: str = Field(default="default", description="The Kubernetes namespace")
+    grace_period_seconds: int | None = Field(
+        default=None, description="Grace period for resource termination in seconds"
+    )
+
+
+class DeleteDaemonSetInput(BaseModel):
+    """Input schema for delete_daemonset tool."""
+
+    daemonset_name: str = Field(description="Name of the daemonset to delete")
+    namespace: str = Field(default="default", description="The Kubernetes namespace")
+    grace_period_seconds: int | None = Field(
+        default=None, description="Grace period for resource termination in seconds"
+    )
+
+
+class DeleteConfigMapInput(BaseModel):
+    """Input schema for delete_configmap tool."""
+
+    configmap_name: str = Field(description="Name of the configmap to delete")
+    namespace: str = Field(default="default", description="The Kubernetes namespace")
+
+
+class DeleteSecretInput(BaseModel):
+    """Input schema for delete_secret tool."""
+
+    secret_name: str = Field(description="Name of the secret to delete")
+    namespace: str = Field(default="default", description="The Kubernetes namespace")
+
+
 @dataclass
 class SREDependencies:
     """Dependencies injected into agent tools."""
@@ -102,7 +163,8 @@ class SREAgent:
                 "You have access to tools to:\n"
                 "1. Query Kubernetes resources (pods, deployments, services, events)\n"
                 "2. Retrieve pod logs\n"
-                "3. Search runbooks and documentation\n\n"
+                "3. Search runbooks and documentation\n"
+                "4. Delete Kubernetes resources (pods, deployments, services, statefulsets, daemonsets, configmaps, secrets)\n\n"
                 "IMPORTANT: When the user mentions a specific namespace in their message "
                 "(e.g., 'kube-system', 'default', 'production'), use that namespace in your tool calls. "
                 "The default namespace provided in the context is just a fallback.\n\n"
@@ -112,6 +174,12 @@ class SREAgent:
                 "3. Provide clear, actionable recommendations\n"
                 "4. Explain the root cause when possible\n"
                 "5. Suggest preventive measures\n\n"
+                "IMPORTANT: For delete operations:\n"
+                "1. Only use delete tools when explicitly requested by the user\n"
+                "2. Always confirm the resource name and namespace before deletion\n"
+                "3. Warn the user that deletion is permanent and cannot be undone\n"
+                "4. Consider the impact on dependent resources\n"
+                "5. Use appropriate grace periods when terminating pods\n\n"
                 "Be thorough but concise. Prioritize safety - suggest read-only operations first."
             ),
         )
@@ -221,6 +289,154 @@ class SREAgent:
                 logger.error("search_runbooks failed", error=str(e))
                 return {"error": str(e)}
 
+        @self.agent.tool
+        async def delete_pod(
+            ctx: RunContext[SREDependencies], input: DeletePodInput
+        ) -> dict[str, Any]:
+            """Delete a pod from a Kubernetes namespace. Use with caution - this is a destructive operation."""
+            logger.info(
+                "Tool: delete_pod",
+                pod=input.pod_name,
+                namespace=input.namespace,
+                grace_period=input.grace_period_seconds,
+            )
+            try:
+                result = await ctx.deps.k8s_client.delete_pod(
+                    pod_name=input.pod_name,
+                    namespace=input.namespace,
+                    grace_period_seconds=input.grace_period_seconds,
+                )
+                return result
+            except Exception as e:
+                logger.error("delete_pod failed", error=str(e))
+                return {"error": str(e), "status": "failed"}
+
+        @self.agent.tool
+        async def delete_deployment(
+            ctx: RunContext[SREDependencies], input: DeleteDeploymentInput
+        ) -> dict[str, Any]:
+            """Delete a deployment from a Kubernetes namespace. Use with caution - this is a destructive operation."""
+            logger.info(
+                "Tool: delete_deployment",
+                deployment=input.deployment_name,
+                namespace=input.namespace,
+                grace_period=input.grace_period_seconds,
+            )
+            try:
+                result = await ctx.deps.k8s_client.delete_deployment(
+                    deployment_name=input.deployment_name,
+                    namespace=input.namespace,
+                    grace_period_seconds=input.grace_period_seconds,
+                )
+                return result
+            except Exception as e:
+                logger.error("delete_deployment failed", error=str(e))
+                return {"error": str(e), "status": "failed"}
+
+        @self.agent.tool
+        async def delete_service(
+            ctx: RunContext[SREDependencies], input: DeleteServiceInput
+        ) -> dict[str, Any]:
+            """Delete a service from a Kubernetes namespace. Use with caution - this is a destructive operation."""
+            logger.info(
+                "Tool: delete_service",
+                service=input.service_name,
+                namespace=input.namespace,
+            )
+            try:
+                result = await ctx.deps.k8s_client.delete_service(
+                    service_name=input.service_name,
+                    namespace=input.namespace,
+                )
+                return result
+            except Exception as e:
+                logger.error("delete_service failed", error=str(e))
+                return {"error": str(e), "status": "failed"}
+
+        @self.agent.tool
+        async def delete_statefulset(
+            ctx: RunContext[SREDependencies], input: DeleteStatefulSetInput
+        ) -> dict[str, Any]:
+            """Delete a statefulset from a Kubernetes namespace. Use with caution - this is a destructive operation."""
+            logger.info(
+                "Tool: delete_statefulset",
+                statefulset=input.statefulset_name,
+                namespace=input.namespace,
+                grace_period=input.grace_period_seconds,
+            )
+            try:
+                result = await ctx.deps.k8s_client.delete_statefulset(
+                    statefulset_name=input.statefulset_name,
+                    namespace=input.namespace,
+                    grace_period_seconds=input.grace_period_seconds,
+                )
+                return result
+            except Exception as e:
+                logger.error("delete_statefulset failed", error=str(e))
+                return {"error": str(e), "status": "failed"}
+
+        @self.agent.tool
+        async def delete_daemonset(
+            ctx: RunContext[SREDependencies], input: DeleteDaemonSetInput
+        ) -> dict[str, Any]:
+            """Delete a daemonset from a Kubernetes namespace. Use with caution - this is a destructive operation."""
+            logger.info(
+                "Tool: delete_daemonset",
+                daemonset=input.daemonset_name,
+                namespace=input.namespace,
+                grace_period=input.grace_period_seconds,
+            )
+            try:
+                result = await ctx.deps.k8s_client.delete_daemonset(
+                    daemonset_name=input.daemonset_name,
+                    namespace=input.namespace,
+                    grace_period_seconds=input.grace_period_seconds,
+                )
+                return result
+            except Exception as e:
+                logger.error("delete_daemonset failed", error=str(e))
+                return {"error": str(e), "status": "failed"}
+
+        @self.agent.tool
+        async def delete_configmap(
+            ctx: RunContext[SREDependencies], input: DeleteConfigMapInput
+        ) -> dict[str, Any]:
+            """Delete a configmap from a Kubernetes namespace. Use with caution - this is a destructive operation."""
+            logger.info(
+                "Tool: delete_configmap",
+                configmap=input.configmap_name,
+                namespace=input.namespace,
+            )
+            try:
+                result = await ctx.deps.k8s_client.delete_configmap(
+                    configmap_name=input.configmap_name,
+                    namespace=input.namespace,
+                )
+                return result
+            except Exception as e:
+                logger.error("delete_configmap failed", error=str(e))
+                return {"error": str(e), "status": "failed"}
+
+        @self.agent.tool
+        async def delete_secret(
+            ctx: RunContext[SREDependencies], input: DeleteSecretInput
+        ) -> dict[str, Any]:
+            """Delete a secret from a Kubernetes namespace. Use with caution - this is a destructive operation."""
+            logger.info(
+                "Tool: delete_secret",
+                secret=input.secret_name,
+                namespace=input.namespace,
+            )
+            try:
+                result = await ctx.deps.k8s_client.delete_secret(
+                    secret_name=input.secret_name,
+                    namespace=input.namespace,
+                )
+                return result
+            except Exception as e:
+                logger.error("delete_secret failed", error=str(e))
+                return {"error": str(e), "status": "failed"}
+
     async def chat(
         self,
         user_message: str,
@@ -232,7 +448,7 @@ class SREAgent:
 
         Args:
             user_message: User's message
-            conversation_history: Previous conversation messages (not used with Pydantic AI currently)
+            conversation_history: Previous conversation messages in format [{"role": "user"|"assistant", "content": "..."}]
             namespace: Default Kubernetes namespace to use
 
         Returns:
@@ -245,8 +461,38 @@ class SREAgent:
         )
 
         try:
-            # Add namespace context to user message
-            enhanced_message = f"[Current default namespace: {namespace}]\n\n{user_message}"
+            # Build conversation context from history
+            # Skip the initial greeting message (first assistant message) if present
+            filtered_history = []
+            if conversation_history and len(conversation_history) > 0:
+                for msg in conversation_history:
+                    # Skip initial greeting
+                    if msg.get("role") == "assistant" and "Hello! I'm your SRE AI Assistant" in msg.get("content", ""):
+                        continue
+                    filtered_history.append(msg)
+
+            # Build the full prompt with conversation context
+            if filtered_history:
+                # Create a rich conversation context
+                conversation_context = []
+                conversation_context.append(f"[Current default namespace: {namespace}]")
+                conversation_context.append("\n[Previous conversation in this session:]")
+
+                for msg in filtered_history:
+                    role = msg.get("role", "user")
+                    content = msg.get("content", "")
+                    if role == "user":
+                        conversation_context.append(f"\nUser said: {content}")
+                    elif role == "assistant":
+                        conversation_context.append(f"\nYou (assistant) previously responded: {content}")
+
+                conversation_context.append(f"\n\n[Current user message in this ongoing conversation:]")
+                conversation_context.append(user_message)
+
+                enhanced_message = "\n".join(conversation_context)
+            else:
+                # No history, just add namespace context
+                enhanced_message = f"[Current default namespace: {namespace}]\n\n{user_message}"
 
             # Run the agent
             result = await self.agent.run(enhanced_message, deps=deps)

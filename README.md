@@ -40,10 +40,10 @@ Frontend (React) → Backend (FastAPI) → Kubernetes Cluster
 ```
 
 **Components**:
-- **K8s Client**: Query pods, deployments, services, logs, events
+- **K8s Client**: Query and manage pods, deployments, services, logs, events (read and delete operations)
 - **Document Service**: RAG system with ChromaDB + OpenAI embeddings
-- **AI Agent**: Pydantic AI-powered agent with tool calling (GPT-4)
-- **Chat Interface**: React frontend with natural language queries
+- **AI Agent**: Pydantic AI-powered agent with tool calling (GPT-4) and conversation history
+- **Chat Interface**: React frontend with natural language queries and persistent conversation context
 
 ## Project Structure
 
@@ -67,6 +67,11 @@ sre-agent/
 │   │   └── types/            # TypeScript types
 │   └── package.json
 ├── docs/runbooks/            # Markdown runbooks for RAG
+├── example-manifests/        # Test K8s resources for delete testing
+│   ├── example-pod.yaml
+│   ├── example-deployment.yaml
+│   ├── example-service.yaml
+│   └── example-configmap.yaml
 ├── docker-compose.yml
 ├── .env                      # Docker Compose config
 └── start.sh / stop.sh
@@ -145,16 +150,34 @@ CHROMA_COLLECTION_NAME=runbooks
 ```python
 # In backend/app/services/ai_agent.py
 
+# 1. Define input schema
 class NewToolInput(BaseModel):
     """Input schema for new tool."""
     param: str = Field(description="Parameter description")
+    namespace: str = Field(default="default", description="Kubernetes namespace")
 
+# 2. Add method to K8sClient (if needed)
+# In backend/app/services/k8s_client.py
+async def new_k8s_operation(self, param: str, namespace: str = "default"):
+    """Perform new K8s operation."""
+    # Implementation here
+    pass
+
+# 3. Register tool with agent
+# In backend/app/services/ai_agent.py _register_tools()
 @self.agent.tool
 async def new_tool(ctx: RunContext[SREDependencies], input: NewToolInput):
-    """Tool description for the AI."""
-    # Access dependencies
-    result = await ctx.deps.k8s_client.some_method(input.param)
-    return result
+    """Tool description for the AI. Explain what it does and when to use it."""
+    logger.info("Tool: new_tool", param=input.param)
+    try:
+        result = await ctx.deps.k8s_client.new_k8s_operation(
+            param=input.param,
+            namespace=input.namespace
+        )
+        return result
+    except Exception as e:
+        logger.error("new_tool failed", error=str(e))
+        return {"error": str(e)}
 ```
 
 ### Indexing Runbooks
@@ -168,8 +191,29 @@ curl -X POST http://localhost:8000/v1/docs/index-directory \
   -d '{"directory_path": "./docs/runbooks"}'      # Local
 ```
 
+## Features
+
+### Read Operations
+- Query pods, deployments, services, events, and namespaces
+- Retrieve pod logs with filtering options
+- Search runbooks and documentation using RAG
+- Get cluster information and health status
+
+### Write Operations (Destructive - Use with Caution)
+- Delete pods with optional grace periods
+- Delete deployments, services, statefulsets, daemonsets
+- Delete configmaps and secrets
+- All delete operations are logged for audit purposes
+
+### Conversation Context
+- Maintains full conversation history across messages
+- Agent remembers previous requests and responses
+- Supports multi-turn interactions for complex operations
+- Context-aware confirmations and follow-ups
+
 ## Example Queries
 
+### Read Operations
 - "Show me all pods in the default namespace"
 - "Why is my pod in CrashLoopBackOff?"
 - "Get logs for pod xyz"
@@ -177,10 +221,18 @@ curl -X POST http://localhost:8000/v1/docs/index-directory \
 - "Show recent events in production namespace"
 - "How do I fix ImagePullBackOff?"
 
+### Delete Operations (Destructive)
+- "Delete the pod named test-nginx-pod in default namespace"
+- "Remove the deployment broken-app from production"
+- "Delete the service old-api in staging"
+- "Delete the configmap test-config"
+
+**Note**: The agent will request confirmation before performing delete operations and warn about permanent consequences.
+
 ## Testing
 
+### Backend Tests
 ```bash
-# Backend
 cd backend
 uv run pytest
 
@@ -191,6 +243,32 @@ uv run pytest
 curl http://localhost:8000/health
 curl http://localhost:8000/v1/docs/stats
 ```
+
+### Testing Delete Operations
+
+Deploy test resources:
+```bash
+# Deploy all example manifests
+kubectl apply -f example-manifests/
+
+# Verify deployment
+kubectl get all -n default -l environment=test
+```
+
+Test delete functionality through the agent:
+```bash
+# Via the chat interface, ask:
+# "Delete the pod named test-nginx-pod in default namespace"
+# "Remove the deployment test-nginx-deployment"
+# "Delete the service test-nginx-service"
+```
+
+Clean up:
+```bash
+kubectl delete -f example-manifests/
+```
+
+See `example-manifests/README.md` for more testing scenarios.
 
 ## Docker Commands
 
@@ -208,14 +286,34 @@ docker-compose down -v  # Remove everything including data
 **K8s connection issues**: Verify `kubectl cluster-info` works
 **No runbooks found**: Run index-directory endpoint
 **ChromaDB errors**: Check `./data/chromadb` has write permissions
+**Agent loses context**: Ensure frontend is sending `conversation_history` in chat requests
+**Delete operations fail**: Verify RBAC permissions allow resource deletion in target namespace
+
+## Safety Considerations
+
+### Delete Operations
+- All delete operations are **destructive and permanent**
+- Agent is instructed to request confirmation before deletion
+- All deletions are logged with structlog for audit trails
+- Consider using RBAC to restrict delete permissions in production
+- Test delete functionality in non-production namespaces first
+
+### Best Practices
+- Use label selectors (e.g., `environment=test`) for test resources
+- Always specify namespace explicitly to avoid unintended deletions
+- Review agent responses carefully before confirming destructive operations
+- Monitor logs for unexpected delete operations
+- Consider implementing approval workflows for production deletions
 
 ## Next Steps
 
 1. Add your runbooks to `docs/runbooks/` and index them
 2. Connect to your K8s cluster (set kubeconfig)
 3. Test queries through the frontend at http://localhost:3000
-4. Extend AI agent with custom tools in `ai_agent.py`
-5. Add custom API endpoints in `backend/app/api/`
+4. Deploy test resources from `example-manifests/` to test delete functionality
+5. Extend AI agent with custom tools in `ai_agent.py`
+6. Add custom API endpoints in `backend/app/api/`
+7. Implement RBAC policies to control agent permissions
 
 ## License
 

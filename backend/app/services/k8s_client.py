@@ -416,3 +416,306 @@ class K8sClient:
         except Exception as e:
             logger.error("Failed to get version", error=str(e))
             return {"major": "unknown", "minor": "unknown", "git_version": "unknown"}
+
+    async def delete_pod(
+        self,
+        pod_name: str,
+        namespace: str = "default",
+        grace_period_seconds: int | None = None,
+    ) -> dict[str, Any]:
+        """
+        Delete a pod from a namespace.
+
+        Args:
+            pod_name: Name of the pod to delete
+            namespace: Kubernetes namespace
+            grace_period_seconds: Grace period for pod termination (optional)
+
+        Returns:
+            Dictionary containing deletion result
+        """
+        try:
+            body = client.V1DeleteOptions(grace_period_seconds=grace_period_seconds)
+            result = self.core_v1.delete_namespaced_pod(
+                name=pod_name, namespace=namespace, body=body
+            )
+
+            logger.info(
+                "Deleted pod",
+                pod=pod_name,
+                namespace=namespace,
+                grace_period=grace_period_seconds,
+            )
+            return {
+                "status": "success",
+                "message": f"Pod '{pod_name}' deleted from namespace '{namespace}'",
+                "pod_name": pod_name,
+                "namespace": namespace,
+            }
+
+        except ApiException as e:
+            logger.error(
+                "Failed to delete pod",
+                error=str(e),
+                pod=pod_name,
+                namespace=namespace,
+            )
+            raise
+
+    async def delete_deployment(
+        self,
+        deployment_name: str,
+        namespace: str = "default",
+        grace_period_seconds: int | None = None,
+    ) -> dict[str, Any]:
+        """
+        Delete a deployment from a namespace.
+
+        Args:
+            deployment_name: Name of the deployment to delete
+            namespace: Kubernetes namespace
+            grace_period_seconds: Grace period for resource termination (optional)
+
+        Returns:
+            Dictionary containing deletion result
+        """
+        try:
+            body = client.V1DeleteOptions(grace_period_seconds=grace_period_seconds)
+            result = self.apps_v1.delete_namespaced_deployment(
+                name=deployment_name, namespace=namespace, body=body
+            )
+
+            logger.info(
+                "Deleted deployment",
+                deployment=deployment_name,
+                namespace=namespace,
+                grace_period=grace_period_seconds,
+            )
+            return {
+                "status": "success",
+                "message": f"Deployment '{deployment_name}' deleted from namespace '{namespace}'",
+                "deployment_name": deployment_name,
+                "namespace": namespace,
+            }
+
+        except ApiException as e:
+            logger.error(
+                "Failed to delete deployment",
+                error=str(e),
+                deployment=deployment_name,
+                namespace=namespace,
+            )
+            raise
+
+    async def delete_service(
+        self,
+        service_name: str,
+        namespace: str = "default",
+    ) -> dict[str, Any]:
+        """
+        Delete a service from a namespace.
+
+        Args:
+            service_name: Name of the service to delete
+            namespace: Kubernetes namespace
+
+        Returns:
+            Dictionary containing deletion result
+        """
+        try:
+            result = self.core_v1.delete_namespaced_service(
+                name=service_name, namespace=namespace
+            )
+
+            logger.info(
+                "Deleted service",
+                service=service_name,
+                namespace=namespace,
+            )
+            return {
+                "status": "success",
+                "message": f"Service '{service_name}' deleted from namespace '{namespace}'",
+                "service_name": service_name,
+                "namespace": namespace,
+            }
+
+        except ApiException as e:
+            logger.error(
+                "Failed to delete service",
+                error=str(e),
+                service=service_name,
+                namespace=namespace,
+            )
+            raise
+
+    async def delete_statefulset(
+        self,
+        statefulset_name: str,
+        namespace: str = "default",
+        grace_period_seconds: int | None = None,
+    ) -> dict[str, Any]:
+        """
+        Delete a statefulset from a namespace.
+
+        Args:
+            statefulset_name: Name of the statefulset to delete
+            namespace: Kubernetes namespace
+            grace_period_seconds: Grace period for resource termination (optional)
+
+        Returns:
+            Dictionary containing deletion result
+        """
+        try:
+            body = client.V1DeleteOptions(grace_period_seconds=grace_period_seconds)
+            result = self.apps_v1.delete_namespaced_stateful_set(
+                name=statefulset_name, namespace=namespace, body=body
+            )
+
+            logger.info(
+                "Deleted statefulset",
+                statefulset=statefulset_name,
+                namespace=namespace,
+                grace_period=grace_period_seconds,
+            )
+            return {
+                "status": "success",
+                "message": f"StatefulSet '{statefulset_name}' deleted from namespace '{namespace}'",
+                "statefulset_name": statefulset_name,
+                "namespace": namespace,
+            }
+
+        except ApiException as e:
+            logger.error(
+                "Failed to delete statefulset",
+                error=str(e),
+                statefulset=statefulset_name,
+                namespace=namespace,
+            )
+            raise
+
+    async def delete_daemonset(
+        self,
+        daemonset_name: str,
+        namespace: str = "default",
+        grace_period_seconds: int | None = None,
+    ) -> dict[str, Any]:
+        """
+        Delete a daemonset from a namespace.
+
+        Args:
+            daemonset_name: Name of the daemonset to delete
+            namespace: Kubernetes namespace
+            grace_period_seconds: Grace period for resource termination (optional)
+
+        Returns:
+            Dictionary containing deletion result
+        """
+        try:
+            body = client.V1DeleteOptions(grace_period_seconds=grace_period_seconds)
+            result = self.apps_v1.delete_namespaced_daemon_set(
+                name=daemonset_name, namespace=namespace, body=body
+            )
+
+            logger.info(
+                "Deleted daemonset",
+                daemonset=daemonset_name,
+                namespace=namespace,
+                grace_period=grace_period_seconds,
+            )
+            return {
+                "status": "success",
+                "message": f"DaemonSet '{daemonset_name}' deleted from namespace '{namespace}'",
+                "daemonset_name": daemonset_name,
+                "namespace": namespace,
+            }
+
+        except ApiException as e:
+            logger.error(
+                "Failed to delete daemonset",
+                error=str(e),
+                daemonset=daemonset_name,
+                namespace=namespace,
+            )
+            raise
+
+    async def delete_configmap(
+        self,
+        configmap_name: str,
+        namespace: str = "default",
+    ) -> dict[str, Any]:
+        """
+        Delete a configmap from a namespace.
+
+        Args:
+            configmap_name: Name of the configmap to delete
+            namespace: Kubernetes namespace
+
+        Returns:
+            Dictionary containing deletion result
+        """
+        try:
+            result = self.core_v1.delete_namespaced_config_map(
+                name=configmap_name, namespace=namespace
+            )
+
+            logger.info(
+                "Deleted configmap",
+                configmap=configmap_name,
+                namespace=namespace,
+            )
+            return {
+                "status": "success",
+                "message": f"ConfigMap '{configmap_name}' deleted from namespace '{namespace}'",
+                "configmap_name": configmap_name,
+                "namespace": namespace,
+            }
+
+        except ApiException as e:
+            logger.error(
+                "Failed to delete configmap",
+                error=str(e),
+                configmap=configmap_name,
+                namespace=namespace,
+            )
+            raise
+
+    async def delete_secret(
+        self,
+        secret_name: str,
+        namespace: str = "default",
+    ) -> dict[str, Any]:
+        """
+        Delete a secret from a namespace.
+
+        Args:
+            secret_name: Name of the secret to delete
+            namespace: Kubernetes namespace
+
+        Returns:
+            Dictionary containing deletion result
+        """
+        try:
+            result = self.core_v1.delete_namespaced_secret(
+                name=secret_name, namespace=namespace
+            )
+
+            logger.info(
+                "Deleted secret",
+                secret=secret_name,
+                namespace=namespace,
+            )
+            return {
+                "status": "success",
+                "message": f"Secret '{secret_name}' deleted from namespace '{namespace}'",
+                "secret_name": secret_name,
+                "namespace": namespace,
+            }
+
+        except ApiException as e:
+            logger.error(
+                "Failed to delete secret",
+                error=str(e),
+                secret=secret_name,
+                namespace=namespace,
+            )
+            raise

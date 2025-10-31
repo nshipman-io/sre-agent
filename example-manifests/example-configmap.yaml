@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-nginx-config
+  namespace: default
+  labels:
+    app: test-nginx
+    environment: test
+data:
+  nginx.conf: |
+    server {
+        listen 80;
+        server_name localhost;
+        location / {
+            return 200 'Hello from test nginx!';
+            add_header Content-Type text/plain;
+        }
+    }
+  app.env: |
+    ENVIRONMENT=test
+    LOG_LEVEL=debug
